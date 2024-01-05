@@ -1,0 +1,11 @@
+{
+    "name": "Wisp",
+    "alias": "wisp",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "App\\Services\\Wisp\\Providers\\WispServiceProvider"
+    ],
+    "files": []
+}
