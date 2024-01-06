@@ -65,7 +65,7 @@ class WispServiceProvider extends ServiceProvider
      * @return void
      */
     public function boot()
-    {
+    {        
         if ($this->config) {
             $this->registerConfig();
         }

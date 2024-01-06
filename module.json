@@ -7,5 +7,5 @@
     "providers": [
         "App\\Services\\Wisp\\Providers\\WispServiceProvider"
     ],
-    "files": []
+    "files": ["helpers.php"]
 }
