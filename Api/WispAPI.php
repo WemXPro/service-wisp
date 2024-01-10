@@ -2,34 +2,16 @@
 
 namespace App\Services\Wisp\Api;
 
-use App\Services\Wisp\Api\Application\Location;
-use App\Services\Wisp\Api\Application\Egg;
-use App\Services\Wisp\Api\Application\Node;
 use Illuminate\Support\Facades\Http;
 
 class WispAPI
 {
-    public function locations()
-    {
-        return new Location($this);
-    }
-
-    public function eggs()
-    {
-        return new Egg($this);
-    }
-
-    public function nodes()
-    {
-        return new Node($this);
-    }
-
     /**
      * Init connection with API
     */
     public function api($method, $endpoint, $data = [])
     {
-        $url = settings('wisp::hostname'). '/api/admin' . $endpoint;
+        $url = settings('wisp::hostname'). '/api/application' . $endpoint;
         
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . settings('encrypted::wisp::api_key'),
@@ -38,7 +20,7 @@ class WispAPI
 
         if($response->failed())
         {
-            // dd($response, $response->json());
+            dd($response, $response->json(), $url);
 
             if($response->unauthorized() OR $response->forbidden()) {
                 throw new \Exception("[WISP] This action is unauthorized! Confirm that API token has the right permissions");

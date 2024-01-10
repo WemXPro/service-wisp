@@ -77,15 +77,12 @@ class Service implements ServiceInterface
      */
     public static function setPackageConfig(Package $package): array
     {
-        $locations = wisp()->locations()->all()->mapWithKeys(function($item) {
+        $collected_locations = collect(wisp()->api('get', '/locations')['data']);
+        $locations = $collected_locations->mapWithKeys(function($item) {
             return [$item['attributes']['id'] => $item['attributes']['long']];
         })->toArray();
 
-        $eggs = wisp()->eggs()->all()->mapWithKeys(function($item) {
-            return [$item['attributes']['id'] => $item['attributes']['name']];
-        })->toArray();
-
-        return [
+        $config = [
             [
                 "col" => "col-4",
                 "key" => "database_limit",
@@ -106,12 +103,12 @@ class Service implements ServiceInterface
             ],
             [
                 "col" => "col-4",
-                "key" => "backup_limit",
-                "name" => "Backup Limit",
-                "description" => "The total number of backups that can be created for this server Pterodactyl Panel.",
+                "key" => "backup_limit_size",
+                "name" => "Backup Size Limit in MB",
+                "description" => "The total size of backups that can be created for this server Pterodactyl Panel.",
                 "type" => "number",
                 "min" => 0,
-                "rules" => ['required'],
+                "rules" => ['required', 'numeric'],
             ],
             [
                 "col" => "col-4",
@@ -166,9 +163,8 @@ class Service implements ServiceInterface
                 "default_value" => 500,
                 "rules" => ['required'],
             ],
-
-            // locations
             [
+                "col" => "col-12",
                 "key" => "locations[]",
                 "name" => __('admin.allowed_locations'),
                 "description" =>  __('admin.allowed_locations_desc'),
@@ -178,15 +174,63 @@ class Service implements ServiceInterface
                 "rules" => ['required'],
             ],
             [
+                "key" => "nest_id",
+                "name" => "Nest ID",
+                "description" =>  "Nest ID of the server you want to use for this package. You can find the nest ID by going to the egg page and looking at the URL. It will be the number at the end of the URL.",
+                "type" => "text",
+                "rules" => ['required', 'numeric'],
+            ],
+            [
                 "key" => "egg_id",
-                "name" => __('admin.egg'),
-                "description" =>  __('admin.egg_desc'),
-                "type" => "select",
-                "options" => $eggs,
-                "save_only" => true,
-                "rules" => ['required'],
+                "name" => "Egg ID",
+                "description" =>  "Egg ID of the server you want to use for this package. You can find the egg ID by going to the egg page and looking at the URL. It will be the number at the end of the URL.",
+                "type" => "text",
+                "rules" => ['required', 'numeric'],
             ],
         ];
+
+        try {
+            $egg = wisp()->api('get', "/nests/{$package->data('nest_id', 2)}/eggs/{$package->data('egg_id', 2)}", ['include' => 'variables'])->collect();
+            
+            $config = array_merge($config, [
+                [
+                    "col" => "col-12",
+                    "key" => "docker_image",
+                    "name" => "Docker Image",
+                    "description" =>  __('admin.docker_image_desc'),
+                    "type" => "text",
+                    "default_value" => $egg['attributes']['docker_image'],
+                    "rules" => ['required'],
+                ],
+                [
+                    "col" => "col-12",
+                    "key" => "startup",
+                    "name" => "Start Up Command",
+                    "description" =>  "The command that will be executed when the server is started. This is usually the command to start the server. i.e java -Xms128M -Xmx128M -jar server.jar",
+                    "default_value" => $egg['attributes']['startup'],
+
+                    "type" => "text",
+                    "rules" => ['required'],
+                ],
+            ]);
+
+            foreach($egg['attributes']['relationships']['variables']['data'] as $variable) {
+                $config[] = [
+                    "col" => "col-4",
+                    "key" => "environment[{$variable['attributes']['env_variable']}]",
+                    "name" => $variable['attributes']['name'],
+                    "description" => $variable['attributes']['description'],
+                    "type" => "text",
+                    "default_value" => $variable['attributes']['default_value'],
+                    "rules" => explode('|', $variable['attributes']['rules'] ?? 'nullable'),
+                ];
+            }
+
+        } catch (\Exception $e) {
+            return $config;
+        }
+
+        return $config;
     }
 
     /**
@@ -222,12 +266,94 @@ class Service implements ServiceInterface
         }
 
         try {
-            $nodes = wisp()->nodes()->all();
+            $nodes = self::api('get', '/nodes')->collect();
         } catch (\Exception $e) {
             return redirect()->back()->withError($e->getMessage());
         }
 
         return redirect()->back()->withSuccess('Successfully connected to Wisp API');
+    }
+
+    /**
+     * Init connection with API
+    */
+    public static function api($method, $endpoint, $data = [])
+    {
+        $url = settings('wisp::hostname'). '/api/application' . $endpoint;
+        
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . settings('encrypted::wisp::api_key'),
+            'Accept' => 'application/json',
+        ])->$method($url, $data);
+
+        if($response->failed())
+        {
+            // dd($response, $response->json(), $url);
+
+            if($response->unauthorized() OR $response->forbidden()) {
+                throw new \Exception("[WISP] This action is unauthorized! Confirm that API token has the right permissions");
+            }
+
+            // dd($response);
+            if($response->serverError()) {
+                throw new \Exception("[WISP] Internal Server Error: {$response->status()}");
+            }
+
+            throw new \Exception("[WISP] Failed to connect to the API. Ensure the API details and hostname are valid.");
+        }
+
+        return $response;
+    }
+
+    public static function createWispUser($order)
+    {
+        $user = $order->user;
+        // check if a user with same email exists on wisp
+        try {
+            $wisp_user = wisp()->api('get', '/users', ['search' => $user->email])->collect();
+            if(!empty($wisp_user['data'])) {
+                $wisp_user = $wisp_user['data'][0];
+
+                // ensure the email is the same
+                if($wisp_user['attributes']['email'] == $user->email) {
+                    $order->createExternalUser([
+                        'external_id' => $wisp_user['attributes']['id'],
+                        'username' => $wisp_user['attributes']['email'],
+                        'data' => $wisp_user['attributes'],
+                        'password' => '',
+                    ]);
+                    return;
+                }
+            }
+
+            // create user on wisp
+            $password = str_random(12);
+            $wisp_user = wisp()->api('post', '/users', [
+                'external_id' => "wemx-{$user->id}",
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'password' => $password,
+                'root_admin' => false,
+            ])->collect();
+
+            $order->createExternalUser([
+                'external_id' => $wisp_user['attributes']['id'],
+                'username' => $wisp_user['attributes']['email'],
+                'password' => $password,
+                'data' => $wisp_user['attributes'],
+            ]);
+
+            // send email to user
+            $user->email([
+                'subject' => 'Game Panel Account Created',
+                'content' => "Your account has been created on the game panel. You can login using the following details: <br><br> Email: {$wisp_user['attributes']['email']} <br> Password: {$password}",
+            ]);
+
+        } catch (\Exception $e) {
+            dd($e);
+            throw new \Exception("[WISP] Failed to create user on Wisp. Error: {$e->getMessage()}");
+        }
     }
 
     /**
@@ -238,7 +364,45 @@ class Service implements ServiceInterface
      */
     public function create(array $data = [])
     {
-        return [];
+        $order = $this->order;
+        $package = $this->order->package;
+        $user = $this->order->user;
+
+        if(!$order->hasExternalUser()) {
+            self::createWispUser($order);
+        }
+
+        $server = wisp()->api('post', '/servers', [
+            "name" => 'A new server',
+            "user" => $order->getExternalUser()->external_id,
+            "nest" => $package->data('nest_id', 2),
+            "egg" => $package->data('egg_id', 2),
+            "docker_image" => $package->data('docker_image'),
+            "startup" => $package->data('startup'),
+            "environment" => $package->data('environment', []),
+            "limits" => [
+                "memory" => $package->data('memory_limit', 0),
+                "swap" => $package->data('swap_limit', 0),
+                "disk" => $package->data('disk_limit', 0),
+                "io" => $package->data('block_io_weight', 500),
+                "cpu" => $package->data('cpu_limit', 0),
+            ],
+            "feature_limits" => [
+                "databases" => $package->data('database_limit', 0),
+                "allocations" => $package->data('allocation_limit', 0),
+                "backup_megabytes_limit" => $package->data('backup_limit_size', 0),
+            ],
+            "deploy" => [
+                "locations" => $package->data('locations', []),
+                "dedicated_ip" => false,
+                "port_range" => [],
+            ],
+            "start_on_completion" => true,
+            "skip_scripts" => false,
+            "oom_disabled" => false,
+            "swap_disabled" => false,
+        ])->collect();
+
     }
 
     /**
