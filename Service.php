@@ -64,6 +64,13 @@ class Service implements ServiceInterface
                 "type" => "password",
                 "rules" => ['required'], // laravel validation rules
             ],
+            [
+                "key" => "encrypted::wisp::client_api_key",
+                "name" => "API Key",
+                "description" => "Client API Key of your WISP panel",
+                "type" => "password",
+                "rules" => ['required'], // laravel validation rules
+            ],
         ];
     }
 
@@ -367,6 +374,29 @@ class Service implements ServiceInterface
             dd($e);
             throw new \Exception("[WISP] Failed to create user on Wisp. Error: {$e->getMessage()}");
         }
+    }
+
+    /**
+     * Change the Wisp password
+     */
+    public function changePassword(Order $order, string $newPassword)
+    {
+        try {
+            $wispUser = $order->getExternalUser()->data;
+
+            $response = wisp()->api('patch', "/users/{$wispUser['id']}", [
+                'first_name' => $order->user->first_name,
+                'last_name' => $order->user->last_name,
+                'email' => $order->user->email,
+                'password' => $newPassword,
+            ]);
+
+            $order->updateExternalPassword($newPassword);
+        } catch (\Exception $error) {
+            return redirect()->back()->withError("Something went wrong, please try again.");
+        }
+
+        return redirect()->back()->withSuccess("Password has been changed");
     }
 
     /**
