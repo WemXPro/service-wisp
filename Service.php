@@ -243,7 +243,20 @@ class Service implements ServiceInterface
      */
     public static function setCheckoutConfig(Package $package): array
     {
-        return [];
+        $locations = $package->data('locations', []);
+
+        return [
+            [
+            "key" => "location",
+            'col' => 'w-1/2 p-2',
+            "name" => "Server Location ",
+            "description" =>  "Where do you want us to deploy your server?",
+            "type" => "select",
+            "options" => $locations,
+            "rules" => ['required'],
+            'required' => true
+            ]
+        ];
     }
 
     /**
@@ -311,7 +324,7 @@ class Service implements ServiceInterface
         // check if a user with same email exists on wisp
         try {
             $wisp_user = wisp()->api('get', '/users', ['search' => $user->email])->collect();
-            if(!empty($wisp_user['data'])) {
+            if(isset($wisp_user['data'][0])) {
                 $wisp_user = $wisp_user['data'][0];
 
                 // ensure the email is the same
@@ -372,8 +385,9 @@ class Service implements ServiceInterface
             self::createWispUser($order);
         }
 
-        $server = wisp()->api('post', '/servers', [
-            "name" => 'A new server',
+        $response = wisp()->api('post', '/servers', [
+            "name" => $order->package->name,
+            'description' => settings('app_name', 'WemX') . " || {$order->package->name} || {$this->order->user->username}", 
             "user" => $order->getExternalUser()->external_id,
             "nest" => $package->data('nest_id', 2),
             "egg" => $package->data('egg_id', 2),
@@ -401,8 +415,20 @@ class Service implements ServiceInterface
             "skip_scripts" => false,
             "oom_disabled" => false,
             "swap_disabled" => false,
-        ])->collect();
+        ]);
 
+        if($response->failed()) {
+            throw new \Exception("[WISP] Failed to create server on Wisp. Error: {$response->json()} Response: {$response}");
+        }
+
+        if(!isset($response->json()['attributes'])) {
+            throw new \Exception("[WISP] Failed to create server on Wisp. Error: {$response->json()} Response: {$response}");
+        }
+
+        $server = $response->json()['attributes'];
+        $order->update([
+            'data' => $server,
+        ]);
     }
 
     /**
@@ -427,7 +453,8 @@ class Service implements ServiceInterface
     */
     public function suspend(array $data = [])
     {
-        return [];
+        $order = $this->order->data;
+        $response = wisp()->api('post', "/servers/{$order['id']}/suspend");
     }
 
     /**
@@ -439,7 +466,8 @@ class Service implements ServiceInterface
     */
     public function unsuspend(array $data = [])
     {
-        return [];
+        $order = $this->order->data;
+        $response = wisp()->api('post', "/servers/{$order['id']}/unsuspend");
     }
 
     /**
@@ -450,7 +478,8 @@ class Service implements ServiceInterface
     */
     public function terminate(array $data = [])
     {
-        return [];
+        $order = $this->order->data;
+        $response = wisp()->api('delete', "/servers/{$order['id']}");
     }
 
 }
