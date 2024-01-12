@@ -448,7 +448,11 @@ class Service implements ServiceInterface
 
         if(!isset($response['attributes'])) {
             if(isset($response['errors']) AND $response['errors'][0]['code'] == 'admin.servers.deployment.no_viable_nodes') {
-                throw new \Exception("[WISP] No viable nodes found for deployment. Please ensure the nodes arent full and allocations are available.");
+                throw new \Exception("[WISP] No viable nodes found for deployment within the allowed locations. Please ensure the nodes arent full.");
+            }
+
+            if(isset($response['errors']) AND $response['errors'][0]['code'] == 'admin.servers.deployment.no_viable_allocations') {
+                throw new \Exception("[WISP] No viable allocations found for deployment within the allowed locations. Please ensure the nodes have available allocations");
             }
 
             throw new \Exception("[WISP] Failed to create server on Wisp.");
