@@ -443,14 +443,18 @@ class Service implements ServiceInterface
         ]);
 
         if($response->failed()) {
-            throw new \Exception("[WISP] Failed to create server on Wisp. Error: {$response->json()} Response: {$response}");
+            ErrorLog('wisp::create', $response->json() . $response);
         }
 
-        if(!isset($response->json()['attributes'])) {
-            throw new \Exception("[WISP] Failed to create server on Wisp. Error: {$response->json()} Response: {$response}");
+        if(!isset($response['attributes'])) {
+            if(isset($response['errors']) AND $response['errors'][0]['code'] == 'admin.servers.deployment.no_viable_nodes') {
+                throw new \Exception("[WISP] No viable nodes found for deployment. Please ensure the nodes arent full and allocations are available.");
+            }
+
+            throw new \Exception("[WISP] Failed to create server on Wisp.");
         }
 
-        $server = $response->json()['attributes'];
+        $server = $response['attributes'];
         $order->update([
             'data' => $server,
         ]);
