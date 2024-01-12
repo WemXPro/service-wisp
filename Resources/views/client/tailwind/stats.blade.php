@@ -5,7 +5,7 @@ try {
             'Authorization' => 'Bearer '. settings('encrypted::wisp::client_api_key'),
             'Accept' => 'Application/vnd.wisp.v1+json',
             'Content-Type' => 'application/json',
-    ])->get(settings('wisp::hostname'). '/api/client/servers/e742532b/resources');
+    ])->get(settings('wisp::hostname'). "/api/client/servers/{$order->data['identifier']}/resources");
 
     $status = $response->json()['status'];
     $resources = $response['proc'];

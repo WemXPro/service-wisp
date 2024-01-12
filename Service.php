@@ -84,7 +84,7 @@ class Service implements ServiceInterface
      */
     public static function setPackageConfig(Package $package): array
     {
-        $collected_locations = collect(wisp()->api('get', '/locations')['data']);
+        $collected_locations = collect(Service::api('get', '/locations')['data']);
         $locations = $collected_locations->mapWithKeys(function($item) {
             return [$item['attributes']['id'] => $item['attributes']['long']];
         })->toArray();
@@ -98,15 +98,6 @@ class Service implements ServiceInterface
                 "type" => "number",
                 "min" => 0,
                 "rules" => ['required'], // laravel validation rules
-            ],
-            [
-                "col" => "col-4",
-                "key" => "allocation_limit",
-                "name" => "Allocation Limit",
-                "description" => "The total number of allocations a user is allowed to create for this server Pterodactyl Panel.",
-                "type" => "number",
-                "min" => 0,
-                "rules" => ['required'],
             ],
             [
                 "col" => "col-4",
@@ -173,8 +164,8 @@ class Service implements ServiceInterface
             [
                 "col" => "col-12",
                 "key" => "locations[]",
-                "name" => __('admin.allowed_locations'),
-                "description" =>  __('admin.allowed_locations_desc'),
+                "name" => "Deployable Locations",
+                "description" =>  "The locations where this server can be deployed.",
                 "type" => "select",
                 "options" => $locations,
                 "multiple" => true,
@@ -185,6 +176,7 @@ class Service implements ServiceInterface
                 "name" => "Nest ID",
                 "description" =>  "Nest ID of the server you want to use for this package. You can find the nest ID by going to the egg page and looking at the URL. It will be the number at the end of the URL.",
                 "type" => "text",
+                "default_value" => 2, // "Minecraft
                 "rules" => ['required', 'numeric'],
             ],
             [
@@ -192,12 +184,20 @@ class Service implements ServiceInterface
                 "name" => "Egg ID",
                 "description" =>  "Egg ID of the server you want to use for this package. You can find the egg ID by going to the egg page and looking at the URL. It will be the number at the end of the URL.",
                 "type" => "text",
+                "default_value" => 2, // "Minecraft
                 "rules" => ['required', 'numeric'],
+            ],
+            [
+                "key" => "dedicated_IP",
+                "name" => "Dedicated IP",
+                "description" =>  "If you want to assign a dedicated IP to this server, set this to true.",
+                "type" => "bool",
+                "rules" => ['boolean'],
             ],
         ];
 
         try {
-            $egg = wisp()->api('get', "/nests/{$package->data('nest_id', 2)}/eggs/{$package->data('egg_id', 2)}", ['include' => 'variables'])->collect();
+            $egg = Service::api('get', "/nests/{$package->data('nest_id', 2)}/eggs/{$package->data('egg_id', 2)}", ['include' => 'variables'])->collect();
             
             $config = array_merge($config, [
                 [
@@ -234,6 +234,7 @@ class Service implements ServiceInterface
             }
 
         } catch (\Exception $e) {
+            ErrorLog('wisp::setPackageConfig', $e->getMessage());
             return $config;
         }
 
@@ -250,20 +251,7 @@ class Service implements ServiceInterface
      */
     public static function setCheckoutConfig(Package $package): array
     {
-        $locations = $package->data('locations', []);
-
-        return [
-            [
-            "key" => "location",
-            'col' => 'w-1/2 p-2',
-            "name" => "Server Location ",
-            "description" =>  "Where do you want us to deploy your server?",
-            "type" => "select",
-            "options" => $locations,
-            "rules" => ['required'],
-            'required' => true
-            ]
-        ];
+        return [];
     }
 
     /**
@@ -273,7 +261,14 @@ class Service implements ServiceInterface
      */
     public static function setServiceButtons(Order $order): array
     {
-        return [];    
+        return [
+            [
+                "name" => "Login to Game Panel",
+                "color" => "primary",
+                "href" => settings('wisp::hostname'),
+                "target" => "_blank", // optional
+            ],
+        ];    
     }
 
     /**
@@ -286,7 +281,7 @@ class Service implements ServiceInterface
         }
 
         try {
-            $nodes = self::api('get', '/nodes')->collect();
+            $nodes = Service::api('get', '/nodes')->collect();
         } catch (\Exception $e) {
             return redirect()->back()->withError($e->getMessage());
         }
@@ -297,18 +292,19 @@ class Service implements ServiceInterface
     /**
      * Init connection with API
     */
-    public static function api($method, $endpoint, $data = [])
+    public static function api($method, $endpoint, $data = [], $type = 'application')
     {
-        $url = settings('wisp::hostname'). '/api/application' . $endpoint;
+        $url = settings('wisp::hostname'). "/api/{$type}{$endpoint}";
         
+        $apiKey = $type == 'application' ? settings('encrypted::wisp::api_key') : settings('encrypted::wisp::client_api_key');
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . settings('encrypted::wisp::api_key'),
+            'Authorization' => 'Bearer ' . $apiKey,
             'Accept' => 'application/json',
         ])->$method($url, $data);
 
         if($response->failed())
         {
-            // dd($response, $response->json(), $url);
+            dd($response, $response->json(), $url);
 
             if($response->unauthorized() OR $response->forbidden()) {
                 throw new \Exception("[WISP] This action is unauthorized! Confirm that API token has the right permissions");
@@ -330,7 +326,7 @@ class Service implements ServiceInterface
         $user = $order->user;
         // check if a user with same email exists on wisp
         try {
-            $wisp_user = wisp()->api('get', '/users', ['search' => $user->email])->collect();
+            $wisp_user = Service::api('get', '/users', ['search' => $user->email])->collect();
             if(isset($wisp_user['data'][0])) {
                 $wisp_user = $wisp_user['data'][0];
 
@@ -348,7 +344,7 @@ class Service implements ServiceInterface
 
             // create user on wisp
             $password = str_random(12);
-            $wisp_user = wisp()->api('post', '/users', [
+            $wisp_user = Service::api('post', '/users', [
                 'external_id' => "wemx-{$user->id}",
                 'email' => $user->email,
                 'first_name' => $user->first_name,
@@ -371,7 +367,7 @@ class Service implements ServiceInterface
             ]);
 
         } catch (\Exception $e) {
-            dd($e);
+            ErrorLog('wisp::createWispUser', $e->getMessage());
             throw new \Exception("[WISP] Failed to create user on Wisp. Error: {$e->getMessage()}");
         }
     }
@@ -384,7 +380,7 @@ class Service implements ServiceInterface
         try {
             $wispUser = $order->getExternalUser()->data;
 
-            $response = wisp()->api('patch', "/users/{$wispUser['id']}", [
+            $response = Service::api('patch', "/users/{$wispUser['id']}", [
                 'first_name' => $order->user->first_name,
                 'last_name' => $order->user->last_name,
                 'email' => $order->user->email,
@@ -415,7 +411,7 @@ class Service implements ServiceInterface
             self::createWispUser($order);
         }
 
-        $response = wisp()->api('post', '/servers', [
+        $response = Service::api('post', '/servers', [
             "name" => $order->package->name,
             'description' => settings('app_name', 'WemX') . " || {$order->package->name} || {$this->order->user->username}", 
             "user" => $order->getExternalUser()->external_id,
@@ -433,12 +429,11 @@ class Service implements ServiceInterface
             ],
             "feature_limits" => [
                 "databases" => $package->data('database_limit', 0),
-                "allocations" => $package->data('allocation_limit', 0),
                 "backup_megabytes_limit" => $package->data('backup_limit_size', 0),
             ],
             "deploy" => [
                 "locations" => $package->data('locations', []),
-                "dedicated_ip" => false,
+                "dedicated_ip" => $package->data('dedicated_IP', false),
                 "port_range" => [],
             ],
             "start_on_completion" => true,
@@ -471,7 +466,20 @@ class Service implements ServiceInterface
     */
     public function upgrade(Package $oldPackage, Package $newPackage)
     {
-        return [];
+        $order = $this->order;
+        $server = $order->data;
+        $response = Service::api('put', "/servers/{$server['id']}/build", [
+            "allocation_id" => $server['allocation'],
+            "memory" => $newPackage->data('memory_limit', 0),
+            "swap" => $newPackage->data('swap_limit', 0),
+            "disk" => $newPackage->data('disk_limit', 0),
+            "io" => $newPackage->data('block_io_weight', 500),
+            "cpu" => $newPackage->data('cpu_limit', 0),
+            "database_limit" => $newPackage->data('database_limit', 0),
+            "backup_megabytes_limit" => $newPackage->data('backup_limit_size', 0),
+        ], 'admin');
+
+        ErrorLog('wisp::upgrade', $response->json() . ' ' . $response);
     }
 
     /**
@@ -484,7 +492,7 @@ class Service implements ServiceInterface
     public function suspend(array $data = [])
     {
         $order = $this->order->data;
-        $response = wisp()->api('post', "/servers/{$order['id']}/suspend");
+        $response = Service::api('post', "/servers/{$order['id']}/suspend");
     }
 
     /**
@@ -497,7 +505,7 @@ class Service implements ServiceInterface
     public function unsuspend(array $data = [])
     {
         $order = $this->order->data;
-        $response = wisp()->api('post', "/servers/{$order['id']}/unsuspend");
+        $response = Service::api('post', "/servers/{$order['id']}/unsuspend");
     }
 
     /**
@@ -509,7 +517,40 @@ class Service implements ServiceInterface
     public function terminate(array $data = [])
     {
         $order = $this->order->data;
-        $response = wisp()->api('delete', "/servers/{$order['id']}");
+        $response = Service::api('delete', "/servers/{$order['id']}");
     }
+
+    /**
+     * Send a power action to the server
+     * 
+     * @return void
+    */
+    public function powerAction(Order $order, string $action)
+    {
+        if(!in_array($action, ['start', 'stop', 'restart', 'kill'])) {
+            return redirect()->back()->withError("Power action is not supported");
+        }
+
+        $server = $order->data;
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer '. settings('encrypted::wisp::client_api_key'),
+                'Accept' => 'Application/vnd.wisp.v1+json',
+                'Content-Type' => 'application/json',
+            ])->post(settings('wisp::hostname'). "/api/client/servers/{$server['identifier']}/power", [
+                'signal' => $action,
+            ]);
+
+            if($response->failed()) {
+                throw new \Exception("[WISP] Failed to perform power action server on Wisp. Error: {$response->json()} Response: {$response}");
+            }
+
+            return redirect()->back()->withSuccess("Power action has been sent");
+        } catch (\Exception $e) {
+            ErrorLog('wisp::powerAction', $response->json());
+            return redirect()->back()->withError("Something went wrong, please try again.");
+        }
+    }
+
 
 }

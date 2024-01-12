@@ -4,6 +4,8 @@ namespace App\Services\Wisp\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Database\Eloquent\Factory;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
 
 class WispServiceProvider extends ServiceProvider
 {
@@ -43,7 +45,7 @@ class WispServiceProvider extends ServiceProvider
      * 
      * @return bool
      */
-    protected $routes = false;
+    protected $routes = true;
 
     /**
      * Register views (Resources/views)
@@ -65,7 +67,12 @@ class WispServiceProvider extends ServiceProvider
      * @return void
      */
     public function boot()
-    {        
+    {
+        RateLimiter::for('wisp-power-actions', function ($job) {
+            return Limit::perMinute(5) // Allows 5 actions per minute for the power actions
+                ->by(optional($job->user())->id ?: $job->ip()); // Rate limit by user ID or IP address.
+        });
+
         if ($this->config) {
             $this->registerConfig();
         }
