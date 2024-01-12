@@ -67,7 +67,7 @@ class Service implements ServiceInterface
             [
                 "key" => "encrypted::wisp::client_api_key",
                 "name" => "API Key",
-                "description" => "Client API Key of your WISP panel",
+                "description" => "Admin Client API Key of your WISP panel",
                 "type" => "password",
                 "rules" => ['required'], // laravel validation rules
             ],
@@ -479,7 +479,9 @@ class Service implements ServiceInterface
             "backup_megabytes_limit" => $newPackage->data('backup_limit_size', 0),
         ], 'admin');
 
-        ErrorLog('wisp::upgrade', $response->json() . ' ' . $response);
+        if($response->failed()) {
+            throw new \Exception("[WISP] Failed to upgrade server on Wisp. Error: {$response->json()} Response: {$response}");
+        }
     }
 
     /**
