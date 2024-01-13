@@ -276,10 +276,6 @@ class Service implements ServiceInterface
     */
     public static function testConnection()
     {
-        if(!function_exists('wisp')) {
-            return redirect()->back()->withError('Wisp service has not been enabled');
-        }
-
         try {
             $nodes = Service::api('get', '/nodes')->collect();
         } catch (\Exception $e) {
