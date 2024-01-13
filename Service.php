@@ -412,7 +412,8 @@ class Service implements ServiceInterface
         }
 
         $response = Service::api('post', '/servers', [
-            "name" => $order->package->name,
+            "name" => "{$order->user->username} {$order->package->name} Server",
+            'external_id' => "wemx-{$order->id}",
             'description' => settings('app_name', 'WemX') . " || {$order->package->name} || {$this->order->user->username}", 
             "user" => $order->getExternalUser()->external_id,
             "nest" => $package->data('nest_id', 2),
@@ -554,6 +555,8 @@ class Service implements ServiceInterface
             if($response->failed()) {
                 throw new \Exception("[WISP] Failed to perform power action server on Wisp. Error: {$response->json()} Response: {$response}");
             }
+
+            sleep(3);
 
             return redirect()->back()->withSuccess("Power action has been sent");
         } catch (\Exception $e) {
