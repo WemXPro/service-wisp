@@ -73,7 +73,7 @@ if($status == 0) {
 <div class="flex justify-between items-center">
     <div>
         <h5 class="mb-4 font-medium text-xl tracking-tight text-gray-900 dark:text-white">
-            {{ $order->data['primary_ip'] }}:{{ $order->data['primary_port'] }}
+           @isset($order->data['primary_ip']) {{ $order->data['primary_ip'] }}:{{ $order->data['primary_port'] }} @endisset
         </h5>
     </div>
     <div>
@@ -89,10 +89,12 @@ if($status == 0) {
     <div class="w-full md:w-1/3 pr-2 mb-4">
         <div class="p-6 bg-white rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
             <h5 class="mb-2 text-lg font-bold tracking-tight text-gray-900 dark:text-white">CPU Usage</h5>
-            <p class="mb-3 font-normal text-gray-700 dark:text-gray-400">{{ number_format($resources['cpu']['total'], 2) }}% / {{ number_format($resources['cpu']['limit'], 2) }}%</p>
+            <p class="mb-3 font-normal text-gray-700 dark:text-gray-400">{{ number_format($resources['cpu']['total'], 2) }}% / @if($resources['cpu']['limit'] > 0) {{ number_format($resources['cpu']['limit'], 2) }}% @else Unlimited @endif</p>
+            @if($resources['cpu']['limit'] < 0)
             <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                 <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ number_format($resources['cpu']['total'], 2) }}%"></div>
             </div>
+            @endif
         </div>
 
     </div>
@@ -116,7 +118,7 @@ if($status == 0) {
             <p class="mb-3 font-normal text-gray-700 dark:text-gray-400">{{ bytesToMB($resources['disk']['used']) }} MB / {{ $diskToMB }} MB</p>
             @if($diskToMB != 'Unlimited')
             <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ number_format(($resources['disk']['used'] / $resources['disk']['limit'] * 100), 2) }}%"></div>
+                <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ number_format(($resources['disk']['used'] / ($resources['disk']['limit'] * 1024 * 1024) * 100), 2) }}%"></div>
             </div>
             @endif
         </div>

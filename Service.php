@@ -164,8 +164,8 @@ class Service implements ServiceInterface
             [
                 "col" => "col-12",
                 "key" => "locations[]",
-                "name" => "Deployable Locations",
-                "description" =>  "The locations where this server can be deployed.",
+                "name" => "Selectable Locations",
+                "description" =>  "The locations that can be selected at checkout by the user.",
                 "type" => "select",
                 "options" => $locations,
                 "multiple" => true,
@@ -251,7 +251,25 @@ class Service implements ServiceInterface
      */
     public static function setCheckoutConfig(Package $package): array
     {
-        return [];
+        $collected_locations = collect(Service::api('get', '/locations')['data']);
+        $locations = $collected_locations->mapWithKeys(function($item) use ($package) {
+            if(!in_array($item['attributes']['id'], $package->data('locations', []))) {
+                return [];
+            }
+            return [$item['attributes']['id'] => $item['attributes']['long']];
+        })->toArray();
+
+        return [
+            [
+                "col" => "w-full",
+                "key" => "location",
+                "name" => "Location",
+                "description" =>  "The location where this server will be deployed.",
+                "type" => "select",
+                "options" => $locations,
+                "rules" => ['required'],
+            ],
+        ];
     }
 
     /**
@@ -410,7 +428,7 @@ class Service implements ServiceInterface
         $response = Service::api('post', '/servers', [
             "name" => "{$order->user->username} {$order->package->name} Server",
             'external_id' => "wemx-{$order->id}",
-            'description' => settings('app_name', 'WemX') . " || {$order->package->name} || {$this->order->user->username}", 
+            'description' => settings('app_name', 'WemX') . " || {$this->order->user->username}", 
             "user" => $order->getExternalUser()->external_id,
             "nest" => $package->data('nest_id', 2),
             "egg" => $package->data('egg_id', 2),
@@ -429,7 +447,7 @@ class Service implements ServiceInterface
                 "backup_megabytes_limit" => $package->data('backup_limit_size', 0),
             ],
             "deploy" => [
-                "locations" => $package->data('locations', []),
+                "locations" => $order->options['location'] ? [$order->options['location']] : $package->data('locations', []),
                 "dedicated_ip" => $package->data('dedicated_IP', false),
                 "port_range" => [],
             ],
