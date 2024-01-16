@@ -66,7 +66,7 @@ class Service implements ServiceInterface
             ],
             [
                 "key" => "encrypted::wisp::client_api_key",
-                "name" => "API Key",
+                "name" => "Client API Key",
                 "description" => "Admin Client API Key of your WISP panel",
                 "type" => "password",
                 "rules" => ['required'], // laravel validation rules
