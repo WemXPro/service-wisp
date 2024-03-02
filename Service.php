@@ -325,7 +325,7 @@ class Service implements ServiceInterface
 
         if($response->failed())
         {
-            dd($response, $response->json(), $url);
+           // dd($response, $response->json(), $url);
 
             if($response->unauthorized() OR $response->forbidden()) {
                 throw new \Exception("[WISP] This action is unauthorized! Confirm that API token has the right permissions");
