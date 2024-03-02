@@ -49,13 +49,20 @@ class Service implements ServiceInterface
      */
     public static function setConfig(): array
     {
+        // Check if the URL ends with a slash
+        $doesNotEndWithSlash = function ($attribute, $value, $fail) {
+            if (preg_match('/\/$/', $value)) {
+                return $fail('Hostname URL must not end with a slash "/". It should be like https://panel.example.com');
+            }
+        };
+        
         return [
             [
                 "key" => "wisp::hostname",
                 "name" => "Hostname",
                 "description" => "Hostname of your WISP panel i.e https://panel.example.com",
                 "type" => "url",
-                "rules" => ['required', 'active_url'], // laravel validation rules
+                "rules" => ['required', 'active_url', $$doesNotEndWithSlash], // laravel validation rules
             ],
             [
                 "key" => "encrypted::wisp::api_key",
