@@ -62,7 +62,7 @@ class Service implements ServiceInterface
                 "name" => "Hostname",
                 "description" => "Hostname of your WISP panel i.e https://panel.example.com",
                 "type" => "url",
-                "rules" => ['required', 'active_url', $$doesNotEndWithSlash], // laravel validation rules
+                "rules" => ['required', 'active_url', $doesNotEndWithSlash], // laravel validation rules
             ],
             [
                 "key" => "encrypted::wisp::api_key",
