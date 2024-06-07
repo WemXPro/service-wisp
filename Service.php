@@ -62,7 +62,7 @@ class Service implements ServiceInterface
                 "name" => "Hostname",
                 "description" => "Hostname of your WISP panel i.e https://panel.example.com",
                 "type" => "url",
-                "rules" => ['required', 'active_url', $$doesNotEndWithSlash], // laravel validation rules
+                "rules" => ['required', 'active_url', $doesNotEndWithSlash], // laravel validation rules
             ],
             [
                 "key" => "encrypted::wisp::api_key",
@@ -92,9 +92,7 @@ class Service implements ServiceInterface
     public static function setPackageConfig(Package $package): array
     {
         $collected_locations = collect(Service::api('get', '/locations')['data']);
-        $locations = $collected_locations->mapWithKeys(function($item) {
-            return [$item['attributes']['id'] => $item['attributes']['long']];
-        })->toArray();
+        $locations = $collected_locations->mapWithKeys(fn($item) => [$item['attributes']['id'] => $item['attributes']['long']])->toArray();
 
         $config = [
             [
