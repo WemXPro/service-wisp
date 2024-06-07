@@ -32,3 +32,7 @@
         <h3 class="mb-2 text-lg font-semibold tracking-tight text-gray-500 dark:text-gray-400">Kill</h3>
     </a>
 </div>
+
+@foreach (enabledModules() as $module)
+    @includeIf(Theme::moduleView($module->getLowerName(), 'wisp.settings_block'))
+@endforeach
