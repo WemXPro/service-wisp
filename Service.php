@@ -103,6 +103,7 @@ class Service implements ServiceInterface
                 "type" => "number",
                 "min" => 0,
                 "rules" => ['required'], // laravel validation rules
+                'is_configurable' => true,
             ],
             [
                 "col" => "col-4",
@@ -112,6 +113,7 @@ class Service implements ServiceInterface
                 "type" => "number",
                 "min" => 0,
                 "rules" => ['required', 'numeric'],
+                'is_configurable' => true,
             ],
             [
                 "col" => "col-4",
@@ -121,6 +123,7 @@ class Service implements ServiceInterface
                 "type" => "number",
                 "min" => 0,
                 "rules" => ['required'],
+                'is_configurable' => true,
             ],
             [
                 "col" => "col-4",
@@ -130,6 +133,7 @@ class Service implements ServiceInterface
                 "type" => "number",
                 "min" => 0,
                 "rules" => ['required'],
+                'is_configurable' => true,
             ],
             [
                 "col" => "col-4",
@@ -139,6 +143,7 @@ class Service implements ServiceInterface
                 "type" => "number",
                 "min" => 0,
                 "rules" => ['required'],
+                'is_configurable' => true,
             ],
             [
                 "col" => "col-4",
@@ -170,11 +175,20 @@ class Service implements ServiceInterface
                 "col" => "col-12",
                 "key" => "locations[]",
                 "name" => "Selectable Locations",
-                "description" =>  "The locations that can be selected at checkout by the user.",
+                "description" =>  "The location that the server can be deployed to if the user does not select a location.",
                 "type" => "select",
                 "options" => $locations,
                 "multiple" => true,
                 "rules" => ['required'],
+            ],
+            [
+                "key" => "location_id",
+                "name" => "Location ID (Leave Empty!)",
+                "description" =>  "This field should be left empty. Its used as configurable options field.",
+                "type" => "text",
+                "default_value" => 0,
+                "rules" => ['required', 'numeric'],
+                'is_configurable' => true,
             ],
             [
                 "key" => "nest_id",
@@ -198,6 +212,7 @@ class Service implements ServiceInterface
                 "description" =>  "If you want to assign a dedicated IP to this server, set this to true.",
                 "type" => "bool",
                 "rules" => ['boolean'],
+                'is_configurable' => true,
             ],
         ];
 
@@ -441,19 +456,19 @@ class Service implements ServiceInterface
             "startup" => $package->data('startup'),
             "environment" => $package->data('environment', []),
             "limits" => [
-                "memory" => $package->data('memory_limit', 0),
+                "memory" => $order->option('memory_limit', 0),
                 "swap" => $package->data('swap_limit', 0),
-                "disk" => $package->data('disk_limit', 0),
+                "disk" => $order->option('disk_limit', 0),
                 "io" => $package->data('block_io_weight', 500),
-                "cpu" => $package->data('cpu_limit', 0),
+                "cpu" => $order->option('cpu_limit', 0),
             ],
             "feature_limits" => [
-                "databases" => $package->data('database_limit', 0),
-                "backup_megabytes_limit" => $package->data('backup_limit_size', 0),
+                "databases" => $order->option('database_limit', 0),
+                "backup_megabytes_limit" => $order->option('backup_limit_size', 0),
             ],
             "deploy" => [
-                "locations" => $order->options['location'] ? [$order->options['location']] : $package->data('locations', []),
-                "dedicated_ip" => $package->data('dedicated_IP', false),
+                "locations" => isset($order->options['custom_option']['location_id']) ? [$order->options['custom_option']['location_id']] : $package->data('locations', []),
+                "dedicated_ip" => $order->option('dedicated_IP', false),
                 "port_range" => [],
             ],
             "start_on_completion" => true,
