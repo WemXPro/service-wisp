@@ -1,11 +1,16 @@
 {
     "name": "Wisp",
     "alias": "wisp",
-    "description": "",
+    "type": "service",
+    "version": "1.0.0",
+    "wemx_version": "2.2.0",
+    "description": "Wisp service",
     "keywords": [],
     "priority": 0,
     "providers": [
         "App\\Services\\Wisp\\Providers\\WispServiceProvider"
     ],
-    "files": []
+    "files": [],
+    "author": "Mubeen",
+    "icon": "https://imgur.png"
 }
