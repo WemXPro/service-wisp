@@ -2,27 +2,28 @@
 
 namespace App\Services\Wisp;
 
-use App\Services\ServiceInterface;
+use App\Extensions\Interfaces\ServiceInterface;
+use App\Models\Orders\Order;
+use App\Models\Packages\Package;
 use Illuminate\Support\Facades\Http;
 use App\Services\Wisp\Api\WispAPI;
-use App\Models\Package;
-use App\Models\Order;
+
 
 class Service implements ServiceInterface
 {
     /**
-     * Unique key used to store settings 
+     * Unique key used to store settings
      * for this service.
-     * 
+     *
      * @return string
      */
-    public static $key = 'wisp'; 
+    public static $key = 'wisp';
 
     public function __construct(Order $order)
     {
         $this->order = $order;
     }
-    
+
     /**
      * Returns the meta data about this Server/Service
      *
@@ -55,7 +56,7 @@ class Service implements ServiceInterface
                 return $fail('Hostname URL must not end with a slash "/". It should be like https://panel.example.com');
             }
         };
-        
+
         return [
             [
                 "key" => "wisp::hostname",
@@ -218,7 +219,7 @@ class Service implements ServiceInterface
 
         try {
             $egg = Service::api('get', "/nests/{$package->data('nest_id', 2)}/eggs/{$package->data('egg_id', 2)}", ['include' => 'variables'])->collect();
-            
+
             $config = array_merge($config, [
                 [
                     "col" => "col-12",
@@ -306,7 +307,7 @@ class Service implements ServiceInterface
                 "href" => settings('wisp::hostname'),
                 "target" => "_blank", // optional
             ],
-        ];    
+        ];
     }
 
     /**
@@ -329,7 +330,7 @@ class Service implements ServiceInterface
     public static function api($method, $endpoint, $data = [], $type = 'application')
     {
         $url = settings('wisp::hostname'). "/api/{$type}{$endpoint}";
-        
+
         $apiKey = $type == 'application' ? settings('encrypted::wisp::api_key') : settings('encrypted::wisp::client_api_key');
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
@@ -432,7 +433,7 @@ class Service implements ServiceInterface
     /**
      * This function is responsible for creating an instance of the
      * service. This can be anything such as a server, vps or any other instance.
-     * 
+     *
      * @return void
      */
     public function create(array $data = [])
@@ -448,7 +449,7 @@ class Service implements ServiceInterface
         $response = Service::api('post', '/servers', [
             "name" => "{$order->user->username} {$order->package->name} Server",
             'external_id' => "wemx-{$order->id}",
-            'description' => settings('app_name', 'WemX') . " || {$this->order->user->username}", 
+            'description' => settings('app_name', 'WemX') . " || {$this->order->user->username}",
             "user" => $order->getExternalUser()->external_id,
             "nest" => $package->data('nest_id', 2),
             "egg" => $package->data('egg_id', 2),
@@ -503,7 +504,7 @@ class Service implements ServiceInterface
      * This function is responsible for upgrading or downgrading
      * an instance of this service. This method is optional
      * If your service doesn't support upgrading, remove this method.
-     * 
+     *
      * Optional
      * @return void
     */
@@ -531,7 +532,7 @@ class Service implements ServiceInterface
      * This function is responsible for suspending an instance of the
      * service. This method is called when a order is expired or
      * suspended by an admin
-     * 
+     *
      * @return void
     */
     public function suspend(array $data = [])
@@ -544,7 +545,7 @@ class Service implements ServiceInterface
      * This function is responsible for unsuspending an instance of the
      * service. This method is called when a order is activated or
      * unsuspended by an admin
-     * 
+     *
      * @return void
     */
     public function unsuspend(array $data = [])
@@ -556,7 +557,7 @@ class Service implements ServiceInterface
     /**
      * This function is responsible for deleting an instance of the
      * service. This can be anything such as a server, vps or any other instance.
-     * 
+     *
      * @return void
     */
     public function terminate(array $data = [])
@@ -567,7 +568,7 @@ class Service implements ServiceInterface
 
     /**
      * Send a power action to the server
-     * 
+     *
      * @return void
     */
     public function powerAction(Order $order, string $action)
