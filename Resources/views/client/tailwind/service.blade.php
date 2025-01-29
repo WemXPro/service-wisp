@@ -33,6 +33,6 @@
     </a>
 </div>
 
-@foreach (enabledModules() as $module)
+@foreach (enabledExtensions() as $module)
     @includeIf(Theme::moduleView($module->getLowerName(), 'wisp.settings_block'))
 @endforeach
