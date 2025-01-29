@@ -2,10 +2,10 @@
 
 namespace App\Services\Wisp\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Database\Eloquent\Factory;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Factory;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 
 class WispServiceProvider extends ServiceProvider
 {
@@ -21,42 +21,42 @@ class WispServiceProvider extends ServiceProvider
 
     /**
      * Register config (Config/config.php)
-     * 
+     *
      * @return bool
      */
     protected $config = false;
 
     /**
      * Register commands (Console/)
-     * 
+     *
      * @return bool
      */
     protected $commands = false;
 
     /**
      * Register migrations (Database/Migrations)
-     * 
+     *
      * @return bool
      */
     protected $migrations = false;
 
     /**
      * Register routes (Routes)
-     * 
+     *
      * @return bool
      */
     protected $routes = true;
 
     /**
      * Register views (Resources/views)
-     * 
+     *
      * @return bool
      */
     protected $views = true;
 
     /**
      * Register language (Resources/lang)
-     * 
+     *
      * @return bool
      */
     protected $languages = false;
